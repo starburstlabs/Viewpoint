@@ -118,8 +118,7 @@ class Viewpoint::EWS::Connection
   private
 
   def check_response(resp)
-    status = oauth? ? resp.code : resp.status
-    case status
+    case resp.status
     when 200
       resp.body
     when 302
