@@ -49,10 +49,13 @@ class Viewpoint::EWS::Connection
   end
 
   def init_http_client(opts)
-    @httpcli = HTTPClient.new({}.tap do |init_options|
-      init_options[:agent_name] = opts[:user_agent] if opts[:user_agent]
-      init_options[:force_basic_auth] = true if basic?
-    end)
+    init_options = {}.tap do |init|
+      init[:agent_name] = opts[:user_agent] if opts[:user_agent]
+      init[:force_basic_auth] = true if basic?
+    end
+    # NOTE: HTTPClient does not handle being handed an empty object literal correctly (it accidentally sets
+    #   proxy to the object literal, then blows up)
+    @httpcli = init_options.keys.empty? ? HTTPClient.new : HTTPClient.new(init_options)
 
     if opts[:trust_ca]
       @httpcli.ssl_config.clear_cert_store
