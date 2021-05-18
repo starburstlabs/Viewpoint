@@ -44,6 +44,10 @@ class Viewpoint::EWS::Connection
     @credentials[:type] == :oauth
   end
 
+  def basic?
+    @credentials[:type] == :basic
+  end
+
   def init_http_client(opts)
     @httpcli = HTTPClient.new({}.tap do |init_options|
       init_options[:agent_name] = opts[:user_agent] if opts[:user_agent]
