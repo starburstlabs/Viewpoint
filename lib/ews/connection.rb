@@ -45,7 +45,10 @@ class Viewpoint::EWS::Connection
   end
 
   def init_http_client(opts)
-    @httpcli = opts[:user_agent] ? HTTPClient.new(agent_name: opts[:user_agent]) : HTTPClient.new
+    @httpcli = HTTPClient.new({}.tap do |init_options|
+      init_options[:agent_name] = opts[:user_agent] if opts[:user_agent]
+      init_options[:force_basic_auth] = true if basic?
+    end)
 
     if opts[:trust_ca]
       @httpcli.ssl_config.clear_cert_store
