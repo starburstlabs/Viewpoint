@@ -15,7 +15,6 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 =end
-require 'httparty'
 require 'httpclient'
 
 class Viewpoint::EWS::Connection
@@ -38,15 +37,25 @@ class Viewpoint::EWS::Connection
     @endpoint = endpoint
     @username = username
     @credentials = credentials
-    oauth? ? init_oauth_http_client : init_ntlm_http_client(opts)
+    init_http_client(opts)
   end
 
   def oauth?
     @credentials[:type] == :oauth
   end
 
-  def init_ntlm_http_client(opts)
-    @httpcli = opts[:user_agent] ? HTTPClient.new(agent_name: opts[:user_agent]) : HTTPClient.new
+  def basic?
+    @credentials[:type] == :basic
+  end
+
+  def init_http_client(opts)
+    init_options = {}.tap do |init|
+      init[:agent_name] = opts[:user_agent] if opts[:user_agent]
+      init[:force_basic_auth] = true if basic?
+    end
+    # NOTE: HTTPClient does not handle being handed an empty object literal correctly (it accidentally sets
+    #   proxy to the object literal, then blows up)
+    @httpcli = init_options.keys.empty? ? HTTPClient.new : HTTPClient.new(init_options)
 
     if opts[:trust_ca]
       @httpcli.ssl_config.clear_cert_store
@@ -55,24 +64,21 @@ class Viewpoint::EWS::Connection
       end
     end
 
-    # @httpcli.debug_dev = $stdout # For debugging requests and responses
+    @httpcli.debug_dev = $stdout if opts[:debug]
+    @httpcli.proxy = opts[:proxy_url] if opts[:proxy_url]
     @httpcli.ssl_config.verify_mode = opts[:ssl_verify_mode] if opts[:ssl_verify_mode]
     @httpcli.ssl_config.ssl_version = opts[:ssl_version] if opts[:ssl_version]
     # Up the keep-alive so we don't have to do the NTLM dance as often.
-    @httpcli.keep_alive_timeout = 60
+    @httpcli.keep_alive_timeout = opts[:keep_alive_timeout] ? opts[:keep_alive_timeout].to_i : 60
+    @httpcli.protocol_version = opts[:protocol_version] if opts[:protocol_version]
     @httpcli.receive_timeout = opts[:receive_timeout] if opts[:receive_timeout]
     @httpcli.connect_timeout = opts[:connect_timeout] if opts[:connect_timeout]
-    set_auth
-  end
 
-  def set_auth
-    @httpcli.set_auth(@endpoint.to_s, @username, @credentials[:password])
-  end
-
-  def init_oauth_http_client
-    @auth_header = { 'Authorization' => 'Bearer ' + @credentials[:access_token] }
-    #see if i can get that other fancy stuff
-    @httpcli = HTTParty
+    if oauth?
+      @auth_header = { 'Authorization' => "Bearer #{@credentials[:access_token]}" }
+    else
+      @httpcli.set_auth(@endpoint.to_s, @username, @credentials[:password])
+    end
   end
 
   # Authenticate to the web service. You don't have to do this because
@@ -107,8 +113,7 @@ class Viewpoint::EWS::Connection
   # @return [String] If the request is successful (200) it returns the body of
   #   the response.
   def get
-    headers = oauth? ? [headers: @auth_header] : []
-    response = @httpcli.get(@endpoint, *headers)
+    response = @httpcli.get(@endpoint, oauth? ? @auth_header : {})
     check_response(response)
   end
 
@@ -116,17 +121,15 @@ class Viewpoint::EWS::Connection
   # @return [String] If the request is successful (200) it returns the body of
   #   the response.
   def post(xmldoc)
-    headers = { 'Content-Type' => 'text/xml' }
-    payload = oauth? ? [{ headers: headers.merge(@auth_header), body: xmldoc.to_s }] : [xmldoc, headers]
-    check_response(@httpcli.post(@endpoint, *payload))
+    headers = { 'Content-Type' => 'text/xml' }.merge(oauth? ? @auth_header : {})
+    check_response(@httpcli.post(@endpoint, xmldoc, headers))
   end
 
 
   private
 
   def check_response(resp)
-    status = oauth? ? resp.code : resp.status
-    case status
+    case resp.status
     when 200
       resp.body
     when 302
