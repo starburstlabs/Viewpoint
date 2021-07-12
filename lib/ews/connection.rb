@@ -144,6 +144,8 @@ class Viewpoint::EWS::Connection
       else
         raise Errors::ServerError.new("Internal Server Error. Message: #{resp.body}", resp)
       end
+    when 503
+      raise Errors::ServerError.new("Service Unavailable. Message: #{resp.body}", resp)
     else
       raise Errors::ResponseError.new("HTTP Error Code: #{resp.status}, Msg: #{resp.body}", resp)
     end
