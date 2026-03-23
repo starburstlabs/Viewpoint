@@ -11,7 +11,7 @@ Gem::Specification.new do |s|
   s.summary = 'A Ruby client access library for Microsoft Exchange Web Services (EWS)'
   s.description = 'A Ruby client access library for Microsoft Exchange Web Services (EWS).  Examples can be found here: http://distributed-frostbite.blogspot.com'
 
-  s.required_ruby_version = '>= 1.9.1'
+  s.required_ruby_version = '>= 2.7'
 
   s.author = 'Dan Wanek'
   s.email = 'dan.wanek@gmail.com'
@@ -25,7 +25,8 @@ Gem::Specification.new do |s|
 
   s.add_runtime_dependency  'nokogiri'
   s.add_runtime_dependency  'httparty'
-  s.add_runtime_dependency  'httpclient'
-  s.add_runtime_dependency  'rubyntlm'
+  s.add_runtime_dependency  'httpclient', '>= 2.8.4'
+  s.add_runtime_dependency  'rubyntlm', '>= 6.2.5'
   s.add_runtime_dependency  'logging'
+  s.add_runtime_dependency  'base64'
 end
