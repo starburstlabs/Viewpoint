@@ -21,4 +21,18 @@ describe "Exchange Response Parser Functionality" do
     resp.body.should == error_body
   end
 
+  it 'removes illegal character &#xFFFF;' do
+    soap_resp = load_soap "find_folder", :response
+    soap_resp.insert(soap_resp.index("TestFolder"), '&#xFFFF;')
+    resp = Viewpoint::EWS::SOAP::EwsParser.new(soap_resp).parse
+    resp.body.should == success_body
+  end
+
+  it 'removes illegal character &#xFFFE;' do
+    soap_resp = load_soap "find_folder", :response
+    soap_resp.insert(soap_resp.index("TestFolder"), '&#xFFFE;')
+    resp = Viewpoint::EWS::SOAP::EwsParser.new(soap_resp).parse
+    resp.body.should == success_body
+  end
+
 end
